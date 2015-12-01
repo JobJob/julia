@@ -150,18 +150,22 @@ function show(io::IO, ::EnvHash)
     end
 end
 
+default_env_change{T<:AbstractString}(oldvals::Dict{T, Any}) = nothing
+
 # temporarily set and then restore an environment value
-function withenv{T<:AbstractString}(f::Function, keyvals::Pair{T}...)
+function withenv{T<:AbstractString}(f::Function, keyvals::Pair{T}...; setup=default_env_change, teardown=default_env_change)
     old = Dict{T,Any}()
     for (key,val) in keyvals
         old[key] = get(ENV,key,nothing)
         val !== nothing ? (ENV[key]=val) : _unsetenv(key)
     end
+    setup(old)
     try f()
     finally
         for (key,val) in old
             val !== nothing ? (ENV[key]=val) : _unsetenv(key)
         end
+        teardown(old)
     end
 end
 withenv(f::Function) = f() # handle empty keyvals case; see #10853
